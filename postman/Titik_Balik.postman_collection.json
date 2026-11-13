@@ -1,0 +1,539 @@
+{
+  "info": {
+    "name": "Titik Balik · E-Waste Drop-Off Finder",
+    "description": "Jalankan pada database demo kosong tanpa seed. Restart server dengan URI yang sama sebelum bagian 2.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "idA",
+      "value": ""
+    },
+    {
+      "key": "idB",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1 · CRUD dan validasi",
+      "item": [
+        {
+          "name": "Tambah titik A · charger dan kabel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/titik-pengumpulan",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nama\": \"Titik A Demo Tebet\",\n  \"alamat\": \"Alamat simulasi di Tebet\",\n  \"kecamatan\": \" TeBeT \",\n  \"tipe\": \"collection-point\",\n  \"barangDiterima\": [\n    \" Charger \",\n    \"Kabel\",\n    \"kabel\"\n  ],\n  \"simulasi\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const data = pm.response.json().data;",
+                  "pm.test('Barang dinormalisasi dan dideduplikasi', () => pm.expect(data.barangDiterima).to.eql(['charger','kabel']));",
+                  "pm.collectionVariables.set('idA', data._id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tambah titik B · monitor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/titik-pengumpulan",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nama\": \"Titik B Demo Tebet\",\n  \"alamat\": \"Alamat simulasi di Tebet\",\n  \"kecamatan\": \" TeBeT \",\n  \"tipe\": \"collection-point\",\n  \"barangDiterima\": [\n    \"monitor\"\n  ],\n  \"simulasi\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const data = pm.response.json().data;",
+                  "pm.test('ID ObjectId dan status aktif', () => { pm.expect(data._id).to.match(/^[0-9a-f]{24}$/); pm.expect(data.status).to.eql('aktif'); });",
+                  "pm.collectionVariables.set('idB', data._id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Daftar memuat titik A dan B",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/titik-pengumpulan"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Kedua ID ditemukan', () => pm.expect(pm.response.json().data.map(p => p._id)).to.include.members([pm.collectionVariables.get('idA'), pm.collectionVariables.get('idB')]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filter Tebet + monitor + aktif",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/titik-pengumpulan?kecamatan=%20TeBeT%20&barang=%20MONITOR%20&status=aktif"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Hanya titik B', () => pm.expect(pm.response.json().data.map(p => p._id)).to.eql([pm.collectionVariables.get('idB')]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Detail titik B",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/titik-pengumpulan/{{idB}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Titik menerima monitor', () => pm.expect(pm.response.json().data.barangDiterima).to.eql(['monitor']));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tolak jenis barang kosong",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/titik-pengumpulan",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nama\": \"Lokasi invalid\",\n  \"alamat\": \"Alamat simulasi di Tebet\",\n  \"kecamatan\": \" TeBeT \",\n  \"tipe\": \"collection-point\",\n  \"barangDiterima\": [],\n  \"simulasi\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error memiliki pesan', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tolak ObjectId invalid",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/titik-pengumpulan/abc"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error memiliki pesan', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tolak query berulang",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/titik-pengumpulan?barang=kabel&barang=monitor"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error memiliki pesan', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tolak query tidak dikenal",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/titik-pengumpulan?tipe=dropbox"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error memiliki pesan', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tolak PATCH tanpa field",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/titik-pengumpulan/{{idB}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error memiliki pesan', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tolak JSON rusak",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/titik-pengumpulan",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"nama\":",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error memiliki pesan', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Nonaktifkan titik B",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/titik-pengumpulan/{{idB}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"nonaktif\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Titik nonaktif', () => pm.expect(pm.response.json().data.status).to.eql('nonaktif'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filter aktif sekarang kosong",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/titik-pengumpulan?kecamatan=%20TeBeT%20&barang=%20MONITOR%20&status=aktif"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Daftar kosong', () => pm.expect(pm.response.json().data).to.eql([]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 · Persistensi dan pembersihan",
+      "item": [
+        {
+          "name": "Status masih tersimpan setelah restart",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/titik-pengumpulan/{{idB}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Titik tetap nonaktif', () => pm.expect(pm.response.json().data.status).to.eql('nonaktif'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Hapus titik B",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/titik-pengumpulan/{{idB}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Body kosong', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Detail titik B setelah dihapus",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/titik-pengumpulan/{{idB}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Pesan titik tidak ditemukan', () => pm.expect(pm.response.json().message).to.eql('Titik pengumpulan tidak ditemukan.'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Hapus titik A",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/titik-pengumpulan/{{idA}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
